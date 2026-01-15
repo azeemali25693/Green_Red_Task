@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Green Red Task (Live)</title>
+    <title>Green Red Task</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -57,7 +57,7 @@
         <div class="max-w-md mx-auto px-4 py-4 flex items-center justify-between">
           <div>
             <h1 class="text-xl font-bold text-slate-900 tracking-tight">Daily Log</h1>
-            <p class="text-xs text-slate-500 font-medium">Live Sync (2026-2027)</p>
+            <p class="text-xs text-slate-500 font-medium">Tracker (2026-2027)</p>
           </div>
           <div class="flex gap-2">
              <div class="flex flex-col items-end">
@@ -114,12 +114,9 @@
         <section>
             <div class="flex items-center justify-between mb-4 ml-1">
                 <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
-                    Live History
+                    History
                     <span id="history-count" class="text-xs font-normal text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">0</span>
                 </h2>
-                <div id="sync-status" class="text-xs text-green-500 font-medium flex items-center gap-1 hidden">
-                    <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div> Live
-                </div>
             </div>
             <div id="history-list" class="space-y-3">
                 <div id="empty-state" class="text-center py-12 opacity-50 hidden">
@@ -169,19 +166,19 @@
         // YOUR CONFIGURATION
         // -------------------------------------------------------------
         const firebaseConfig = {
-            apiKey: "AIzaSyAZjbLlEBIBGFGRS-jEWx0Mj8ukJmCZywk",
-            authDomain: "green-red-task.firebaseapp.com",
-            projectId: "green-red-task",
-            storageBucket: "green-red-task.firebasestorage.app",
-            messagingSenderId: "78533558290",
-            appId: "1:78533558290:web:58757d815ce4ad09b418cb",
-            measurementId: "G-WGJ149QF0T"
+          apiKey: "AIzaSyAZjbLlEBIBGFGRS-jEWx0Mj8ukJmCZywk",
+          authDomain: "green-red-task.firebaseapp.com",
+          projectId: "green-red-task",
+          storageBucket: "green-red-task.firebasestorage.app",
+          messagingSenderId: "78533558290",
+          appId: "1:78533558290:web:58757d815ce4ad09b418cb",
+          measurementId: "G-WGJ149QF0T"
         };
         // -------------------------------------------------------------
 
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
-        const analytics = getAnalytics(app); // Initialized as requested
+        const analytics = getAnalytics(app); 
         const db = getFirestore(app);
         const COLLECTION_NAME = "tracker_logs"; 
 
@@ -195,7 +192,7 @@
             const selectEl = document.getElementById('date-select');
             const dateVal = selectEl.value;
             
-            // Validation: Don't allow selecting disabled options (though UI prevents it)
+            // Validation
             if (!dateVal || dateVal.includes("Weekend")) {
                 alert("Please select a valid weekday.");
                 return;
@@ -261,7 +258,8 @@
         };
 
         // --- REALTIME LISTENER ---
-        const q = query(collection(db, COLLECTION_NAME), orderBy("createdAt", "desc"));
+        // CHANGED: orderBy createdAt ASCENDING (oldest at top)
+        const q = query(collection(db, COLLECTION_NAME), orderBy("createdAt", "asc"));
         
         onSnapshot(q, (snapshot) => {
             entries = snapshot.docs.map(doc => ({
@@ -270,7 +268,6 @@
             }));
             
             render(); 
-            document.getElementById('sync-status').classList.remove('hidden');
         }, (error) => {
             console.error("Sync Error:", error);
             if(error.code === 'permission-denied') {
@@ -319,7 +316,7 @@
                     
                     let timeString = entry.createdAt && entry.createdAt.toDate 
                         ? entry.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                        : "Just now";
+                        : "";
 
                     const iconBg = entry.status === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600';
                     const iconName = entry.status === 'success' ? 'check-circle-2' : 'x-circle';
@@ -373,17 +370,12 @@
                 const option = document.createElement('option');
 
                 if (dayIndex === 0 || dayIndex === 6) {
-                    // WEEKEND LOGIC
                     option.disabled = true;
-                    // Visual separator using dashes
                     option.textContent = `— ${d} ${m} (${w}) —`;
-                    // Additional styling is handled in CSS above
                 } else {
-                    // WEEKDAY LOGIC
                     option.value = dateStr;
                     option.textContent = dateStr;
                     
-                    // Auto-select today if matched
                     if (d === now.getDate() && 
                         currentDate.getMonth() === now.getMonth() && 
                         y === now.getFullYear()) {
@@ -392,8 +384,6 @@
                 }
                 
                 selectEl.appendChild(option);
-                
-                // Move to next day
                 currentDate.setDate(currentDate.getDate() + 1);
             }
         };
