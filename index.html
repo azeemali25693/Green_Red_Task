@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Green Red Task (Live)</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: { success: '#22c55e', fail: '#ef4444', slate: { 850: '#1e293b' } },
+            fontFamily: { sans: ['Inter', 'sans-serif'] },
+          },
+        },
+      }
+    </script>
+
+    <!-- Google Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+      body { font-family: 'Inter', sans-serif; background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      .fade-in { animation: fadeIn 0.2s ease-in-out; }
+      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+      .zoom-in { animation: zoomIn 0.2s ease-in-out; }
+      @keyframes zoomIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+      select { -webkit-appearance: none; -moz-appearance: none; appearance: none; }
+      
+      /* Weekend Separator Styles in Dropdown */
+      option:disabled {
+        color: #cbd5e1; /* Light gray text */
+        background-color: #f1f5f9; /* Very light bg */
+        font-style: italic;
+        font-size: 0.9em;
+      }
+      
+      .loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.6); z-index: 100; display: none; justify-content: center; align-items: center; }
+    </style>
+</head>
+<body>
+
+    <!-- Loading Spinner Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="animate-spin text-slate-500"><i data-lucide="loader-2" width="40" height="40"></i></div>
+    </div>
+
+    <div id="app" class="min-h-screen bg-slate-50 text-slate-800 font-sans pb-20 relative">
+      
+      <!-- Header -->
+      <header class="bg-white border-b border-slate-200 sticky top-0 z-10">
+        <div class="max-w-md mx-auto px-4 py-4 flex items-center justify-between">
+          <div>
+            <h1 class="text-xl font-bold text-slate-900 tracking-tight">Daily Log</h1>
+            <p class="text-xs text-slate-500 font-medium">Live Sync (2026-2027)</p>
+          </div>
+          <div class="flex gap-2">
+             <div class="flex flex-col items-end">
+                <span id="header-rate" class="text-lg font-bold text-orange-500">...</span>
+                <span class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Success Rate</span>
+             </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="max-w-md mx-auto px-4 py-6 space-y-8">
+        
+        <!-- Input Section -->
+        <section class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
+            <label class="block text-sm font-semibold text-slate-600 mb-2 ml-1">Select Date</label>
+            <div class="relative mb-6">
+                <select id="date-select" class="w-full text-lg font-medium bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:bg-white transition-all text-slate-800 cursor-pointer">
+                    <option>Loading dates...</option>
+                </select>
+                <div class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                    <i data-lucide="chevron-down" width="20" height="20"></i>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="handleAddEntry('success')" class="flex items-center justify-center rounded-xl transition-all duration-200 active:scale-95 font-semibold shadow-sm border bg-green-50 text-green-700 border-green-200 hover:bg-green-100 hover:border-green-300 h-24 flex-col gap-2 text-lg border-2">
+                    <div class="w-10 h-10 rounded-full bg-green-200 flex items-center justify-center mb-1"><i data-lucide="check" class="text-green-700" width="24" height="24" stroke-width="3"></i></div>
+                    <span>Done</span>
+                </button>
+                <button onclick="handleAddEntry('fail')" class="flex items-center justify-center rounded-xl transition-all duration-200 active:scale-95 font-semibold shadow-sm border bg-red-50 text-red-700 border-red-200 hover:bg-red-100 hover:border-red-300 h-24 flex-col gap-2 text-lg border-2">
+                    <div class="w-10 h-10 rounded-full bg-red-200 flex items-center justify-center mb-1"><i data-lucide="x" class="text-red-700" width="24" height="24" stroke-width="3"></i></div>
+                    <span>Missed</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Stats Mini Bar -->
+        <section id="stats-bar" class="grid grid-cols-3 gap-2 hidden">
+            <div class="bg-white p-3 rounded-2xl border border-slate-100 text-center shadow-sm">
+                <div class="text-xs text-slate-400 font-semibold uppercase mb-1">Total</div>
+                <div id="stat-total" class="text-xl font-bold text-slate-700">0</div>
+            </div>
+            <div class="bg-white p-3 rounded-2xl border border-green-100 text-center shadow-sm">
+                <div class="text-xs text-green-600/70 font-semibold uppercase mb-1">Green</div>
+                <div id="stat-success" class="text-xl font-bold text-green-600">0</div>
+            </div>
+            <div class="bg-white p-3 rounded-2xl border border-red-100 text-center shadow-sm">
+                <div class="text-xs text-red-600/70 font-semibold uppercase mb-1">Red</div>
+                <div id="stat-fail" class="text-xl font-bold text-red-600">0</div>
+            </div>
+        </section>
+
+        <!-- History List -->
+        <section>
+            <div class="flex items-center justify-between mb-4 ml-1">
+                <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    Live History
+                    <span id="history-count" class="text-xs font-normal text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">0</span>
+                </h2>
+                <div id="sync-status" class="text-xs text-green-500 font-medium flex items-center gap-1 hidden">
+                    <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div> Live
+                </div>
+            </div>
+            <div id="history-list" class="space-y-3">
+                <div id="empty-state" class="text-center py-12 opacity-50 hidden">
+                    <div class="w-16 h-16 bg-slate-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i data-lucide="cloud" class="text-slate-400"></i>
+                    </div>
+                    <p class="text-slate-500">Waiting for data...</p>
+                </div>
+            </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="edit-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm fade-in">
+        <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-xl zoom-in">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-slate-800">Edit Entry</h3>
+                <button onclick="closeEditModal()" class="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors">
+                    <i data-lucide="x" width="20" height="20"></i>
+                </button>
+            </div>
+            <div class="mb-6">
+                <label class="block text-sm font-semibold text-slate-600 mb-2 ml-1">Date</label>
+                <input type="text" id="edit-date-input" class="w-full text-lg font-medium bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:bg-white text-slate-800" readonly />
+                <p class="text-xs text-slate-400 mt-1 ml-1">Dates cannot be changed, only status.</p>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                 <button onclick="handleSaveEdit('success')" class="flex items-center justify-center rounded-xl transition-all duration-200 active:scale-95 font-semibold shadow-sm border bg-green-50 text-green-700 border-green-200 hover:bg-green-100 hover:border-green-300 h-14 gap-2 border-2">
+                    <i data-lucide="check" width="20" height="20" stroke-width="3"></i> Update
+                </button>
+                <button onclick="handleSaveEdit('fail')" class="flex items-center justify-center rounded-xl transition-all duration-200 active:scale-95 font-semibold shadow-sm border bg-red-50 text-red-700 border-red-200 hover:bg-red-100 hover:border-red-300 h-14 gap-2 border-2">
+                    <i data-lucide="x" width="20" height="20" stroke-width="3"></i> Update
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FIREBASE MODULE -->
+    <script type="module">
+        // Import Firebase Functions from CDN
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // -------------------------------------------------------------
+        // YOUR CONFIGURATION
+        // -------------------------------------------------------------
+        const firebaseConfig = {
+            apiKey: "AIzaSyAZjbLlEBIBGFGRS-jEWx0Mj8ukJmCZywk",
+            authDomain: "green-red-task.firebaseapp.com",
+            projectId: "green-red-task",
+            storageBucket: "green-red-task.firebasestorage.app",
+            messagingSenderId: "78533558290",
+            appId: "1:78533558290:web:58757d815ce4ad09b418cb",
+            measurementId: "G-WGJ149QF0T"
+        };
+        // -------------------------------------------------------------
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app); // Initialized as requested
+        const db = getFirestore(app);
+        const COLLECTION_NAME = "tracker_logs"; 
+
+        // Local State
+        let entries = [];
+        let editingId = null;
+
+        // --- GLOBAL FUNCTIONS ---
+        
+        window.handleAddEntry = async (status) => {
+            const selectEl = document.getElementById('date-select');
+            const dateVal = selectEl.value;
+            
+            // Validation: Don't allow selecting disabled options (though UI prevents it)
+            if (!dateVal || dateVal.includes("Weekend")) {
+                alert("Please select a valid weekday.");
+                return;
+            }
+
+            // Check Duplicate
+            const exists = entries.some(e => e.dateString === dateVal);
+            if (exists) {
+                if(!confirm(`Entry for "${dateVal}" already exists. Add another?`)) return;
+            }
+
+            setLoading(true);
+            try {
+                await addDoc(collection(db, COLLECTION_NAME), {
+                    dateString: dateVal,
+                    status: status,
+                    createdAt: serverTimestamp()
+                });
+            } catch (error) {
+                console.error("Error adding:", error);
+                alert("Error saving to cloud. Check internet.");
+            }
+            setLoading(false);
+        };
+
+        window.handleDeleteEntry = async (id) => {
+            if(confirm("Delete this log permanently?")) {
+                setLoading(true);
+                try {
+                    await deleteDoc(doc(db, COLLECTION_NAME, id));
+                } catch(e) { console.error(e); alert("Delete failed"); }
+                setLoading(false);
+            }
+        };
+
+        window.openEditModal = (id) => {
+            const entry = entries.find(e => e.id === id);
+            if (!entry) return;
+            editingId = id;
+            document.getElementById('edit-date-input').value = entry.dateString;
+            document.getElementById('edit-modal').classList.remove('hidden');
+        };
+
+        window.closeEditModal = () => {
+            editingId = null;
+            document.getElementById('edit-modal').classList.add('hidden');
+        };
+
+        window.handleSaveEdit = async (status) => {
+            if (!editingId) return;
+            setLoading(true);
+            try {
+                const entryRef = doc(db, COLLECTION_NAME, editingId);
+                await updateDoc(entryRef, {
+                    status: status
+                });
+                closeEditModal();
+            } catch(e) {
+                console.error(e);
+                alert("Update failed");
+            }
+            setLoading(false);
+        };
+
+        // --- REALTIME LISTENER ---
+        const q = query(collection(db, COLLECTION_NAME), orderBy("createdAt", "desc"));
+        
+        onSnapshot(q, (snapshot) => {
+            entries = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            
+            render(); 
+            document.getElementById('sync-status').classList.remove('hidden');
+        }, (error) => {
+            console.error("Sync Error:", error);
+            if(error.code === 'permission-denied') {
+                alert("Database Permission Denied. Please set Firestore rules to 'allow read, write: if true;'");
+            }
+        });
+
+        // --- HELPER FUNCTIONS ---
+        const setLoading = (isLoading) => {
+            document.getElementById('loading-overlay').style.display = isLoading ? 'flex' : 'none';
+        };
+
+        const renderStats = () => {
+            const total = entries.length;
+            const success = entries.filter(e => e.status === 'success').length;
+            const fail = total - success;
+            const successRate = total === 0 ? 0 : Math.round((success / total) * 100);
+
+            document.getElementById('stat-total').textContent = total;
+            document.getElementById('stat-success').textContent = success;
+            document.getElementById('stat-fail').textContent = fail;
+            
+            const rateEl = document.getElementById('header-rate');
+            rateEl.textContent = `${successRate}%`;
+            rateEl.className = `text-lg font-bold ${successRate >= 50 ? 'text-green-600' : 'text-orange-500'}`;
+            document.getElementById('history-count').textContent = total;
+            
+            const statsBar = document.getElementById('stats-bar');
+            if (total > 0) statsBar.classList.remove('hidden');
+            else statsBar.classList.add('hidden');
+        };
+
+        const renderHistory = () => {
+            const listEl = document.getElementById('history-list');
+            const emptyEl = document.getElementById('empty-state');
+            listEl.innerHTML = '';
+            listEl.appendChild(emptyEl);
+
+            if (entries.length === 0) {
+                emptyEl.classList.remove('hidden');
+            } else {
+                emptyEl.classList.add('hidden');
+                entries.forEach(entry => {
+                    const item = document.createElement('div');
+                    item.className = "group relative flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm transition-all hover:shadow-md mb-3 fade-in";
+                    
+                    let timeString = entry.createdAt && entry.createdAt.toDate 
+                        ? entry.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : "Just now";
+
+                    const iconBg = entry.status === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600';
+                    const iconName = entry.status === 'success' ? 'check-circle-2' : 'x-circle';
+
+                    item.innerHTML = `
+                        <div class="flex flex-col pr-4 overflow-hidden">
+                            <span class="text-slate-800 font-medium text-lg leading-tight break-words">${entry.dateString}</span>
+                            <span class="text-slate-400 text-xs mt-1">${timeString}</span>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <div class="flex items-center justify-center w-10 h-10 rounded-full mr-2 ${iconBg}">
+                                <i data-lucide="${iconName}" width="24" height="24" stroke-width="2.5"></i>
+                            </div>
+                            <button onclick="openEditModal('${entry.id}')" class="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"><i data-lucide="pencil" width="18" height="18"></i></button>
+                            <button onclick="handleDeleteEntry('${entry.id}')" class="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><i data-lucide="trash-2" width="18" height="18"></i></button>
+                        </div>
+                    `;
+                    listEl.appendChild(item);
+                });
+            }
+            lucide.createIcons();
+        };
+
+        const render = () => {
+            renderStats();
+            renderHistory();
+        };
+
+        // --- DATE GENERATOR WITH VISIBLE WEEKEND SEPARATORS ---
+        const initDateDropdown = () => {
+            const selectEl = document.getElementById('date-select');
+            selectEl.innerHTML = ''; 
+            
+            const startDate = new Date(2026, 0, 1);
+            const endDate = new Date(2027, 11, 31);
+            
+            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+            let currentDate = new Date(startDate);
+            const now = new Date();
+
+            while (currentDate <= endDate) {
+                const dayIndex = currentDate.getDay();
+                const d = currentDate.getDate();
+                const m = months[currentDate.getMonth()];
+                const y = currentDate.getFullYear();
+                const w = days[dayIndex];
+                
+                const dateStr = `${d} ${m} ${w} ${y}`;
+                const option = document.createElement('option');
+
+                if (dayIndex === 0 || dayIndex === 6) {
+                    // WEEKEND LOGIC
+                    option.disabled = true;
+                    // Visual separator using dashes
+                    option.textContent = `— ${d} ${m} (${w}) —`;
+                    // Additional styling is handled in CSS above
+                } else {
+                    // WEEKDAY LOGIC
+                    option.value = dateStr;
+                    option.textContent = dateStr;
+                    
+                    // Auto-select today if matched
+                    if (d === now.getDate() && 
+                        currentDate.getMonth() === now.getMonth() && 
+                        y === now.getFullYear()) {
+                        selectEl.value = dateStr;
+                    }
+                }
+                
+                selectEl.appendChild(option);
+                
+                // Move to next day
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+        };
+
+        // Init
+        initDateDropdown();
+        lucide.createIcons();
+    </script>
+</body>
+</html>
